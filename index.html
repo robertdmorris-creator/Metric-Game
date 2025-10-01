@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Metric Worksheet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem; /* Larger font for numbers */
+            cursor: pointer;
+        }
+        .decimal-point-area {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .decimal-point {
+            display: none;
+            position: absolute;
+            bottom: 0;
+            right: 6px;
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #000; /* Black color */
+            line-height: 1;
+        }
+        .has-decimal .decimal-point {
+            display: block;
+        }
+        .chart-box.active {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* Blue ring for active input */
+            z-index: 10;
+        }
+        /* Keypad Styles */
+        #keypad {
+            position: fixed; /* Changed from absolute to fixed for floating */
+            display: none; /* Hidden by default */
+            width: 200px;
+            background-color: #e5e7eb; /* gray-200 */
+            border-radius: 1rem;
+            padding: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 50;
+        }
+        .dark #keypad {
+             background-color: #1f2937; /* dark:gray-800 */
+        }
+        /* Robot styles */
+        #robot-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: flex-end;
+            z-index: 100;
+        }
+        #robot-face {
+            width: 100px; /* Increased size */
+            height: 100px; /* Increased size */
+            background-color: #d1d5db; /* gray-300 */
+            border: 4px solid #4b5563; /* gray-600 */
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            transform-origin: bottom center;
+        }
+        .robot-eye {
+            position: absolute;
+            top: 25px; /* Adjusted position */
+            width: 25px; /* Adjusted size */
+            height: 25px; /* Adjusted size */
+            background-color: #fff;
+            border-radius: 50%;
+            border: 3px solid #4b5563;
+        }
+        .robot-eye.left { left: 20px; } /* Adjusted position */
+        .robot-eye.right { right: 20px; } /* Adjusted position */
+        .pupil {
+            width: 12px; /* Adjusted size */
+            height: 12px; /* Adjusted size */
+            background-color: #1f2937; /* gray-800 */
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: background-color 0.3s;
+        }
+        .robot-mouth {
+            position: absolute;
+            bottom: 20px; /* Adjusted position */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px; /* Adjusted size */
+            height: 6px; /* Adjusted size */
+            background-color: #4b5563;
+        }
+        #speech-bubble {
+            position: relative;
+            background: #fff;
+            border-radius: .4em;
+            padding: 10px;
+            margin-left: 15px;
+            max-width: 200px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.3s, transform 0.3s;
+            visibility: hidden;
+        }
+        #speech-bubble.visible {
+            opacity: 1;
+            transform: scale(1);
+            visibility: visible;
+        }
+        #speech-bubble:after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 0;
+            height: 0;
+            border: 10px solid transparent;
+            border-right-color: #fff;
+            border-left: 0;
+            margin-top: -10px;
+            margin-left: -10px;
+        }
+        /* Robot Animations */
+        @keyframes dance {
+            0%, 100% { transform: rotate(0deg) translateY(0); }
+            25% { transform: rotate(-8deg) translateY(-10px); }
+            50% { transform: rotate(8deg) translateY(0); }
+            75% { transform: rotate(-5deg) translateY(-5px); }
+        }
+        .dancing {
+            animation: dance 0.8s ease-in-out;
+        }
+        @keyframes shrug {
+             0%, 100% { transform: translateY(0) rotate(0); }
+             30% { transform: translateY(-8px) rotate(-3deg); }
+             60% { transform: translateY(0) rotate(3deg); }
+        }
+        .shrugging {
+            animation: shrug 0.7s ease-in-out;
+        }
+        
+        /* Fullscreen Styles */
+        body.fullscreen #main-container {
+            max-width: 95vw;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        body.fullscreen h1 {
+            font-size: 4rem;
+        }
+
+        body.fullscreen h2 {
+            font-size: 3rem;
+        }
+        
+        body.fullscreen #interactive-chart .font-bold {
+             font-size: 1.5rem;
+        }
+
+        body.fullscreen .chart-box {
+            font-size: 2rem;
+            height: 8rem;
+        }
+
+        body.fullscreen .decimal-point {
+            font-size: 5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen p-4">
+
+    <!-- AI Robot -->
+    <div id="robot-container">
+        <div id="robot-face">
+            <div class="robot-eye left"><div class="pupil"></div></div>
+            <div class="robot-eye right"><div class="pupil"></div></div>
+            <div class="robot-mouth"></div>
+        </div>
+        <div id="speech-bubble">Hello!</div>
+    </div>
+
+    <div class="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8 relative" id="main-container">
+        
+        <button id="fullscreen-btn" class="absolute top-4 right-4 p-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800 z-10" title="Toggle Fullscreen">
+            <svg id="fullscreen-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 1v4m0 0h-4m4 0l-5-5" />
+            </svg>
+            <svg id="exit-fullscreen-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 4H4v6m0-6l6 6m10 10h-6v-6m0 6l-6-6" />
+            </svg>
+         </button>
+
+        <div class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">Interactive Metric Worksheet</h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Use the chart to solve the conversion problem.</p>
+        </div>
+
+        <!-- Problem Section -->
+        <div class="bg-blue-50 dark:bg-blue-900/50 p-6 rounded-lg text-center mb-6">
+            <h2 class="text-xl md:text-2xl font-bold text-blue-800 dark:text-blue-200" id="problem-text">5 cm = ____ mm</h2>
+        </div>
+
+        <!-- Control Section -->
+        <div class="mb-6 pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div class="flex flex-wrap justify-center gap-2">
+                 <button id="check-answer" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800">Check Answer</button>
+                 <button id="new-problem" class="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800">New Problem</button>
+                 <button id="hard-problem" class="px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 dark:focus:ring-offset-gray-800">Hard Problem</button>
+            </div>
+        </div>
+        <div id="feedback" class="text-center text-lg font-medium mb-6 min-h-[28px]"></div>
+        
+        <!-- Interactive Chart -->
+        <div>
+            <p class="text-center text-gray-500 dark:text-gray-400 mb-4">Tap a box to enter a number. Tap the bottom-right corner to place the decimal.</p>
+            
+            <div id="interactive-chart" class="grid grid-cols-7 gap-1 md:gap-2 text-center text-sm">
+                <!-- Headers -->
+                <div class="p-2 md:py-3 bg-red-500 text-white rounded-t-lg font-bold">Kilo</div>
+                <div class="p-2 md:py-3 bg-orange-500 text-white rounded-t-lg font-bold">Hecto</div>
+                <div class="p-2 md:py-3 bg-amber-400 text-black rounded-t-lg font-bold">Deca</div>
+                <div class="p-2 md:py-3 bg-lime-500 text-white rounded-t-lg font-bold">Base Unit <br><span class="font-normal text-xs">(m, l, g)</span></div>
+                <div class="p-2 md:py-3 bg-teal-500 text-white rounded-t-lg font-bold">Deci</div>
+                <div class="p-2 md:py-3 bg-cyan-500 text-white rounded-t-lg font-bold">Centi</div>
+                <div class="p-2 md:py-3 bg-fuchsia-500 text-white rounded-t-lg font-bold">Milli</div>
+                <!-- Interactive Boxes -->
+                <div data-unit="kilo" class="chart-box w-full h-16 p-2 text-center border-t-0 border-2 border-red-500 dark:border-red-600 bg-white dark:bg-gray-700 rounded-b-lg text-gray-900 dark:text-white"><span class="number-display"></span><div class="decimal-point-area"></div><div class="decimal-point">.</div></div>
+                <div data-unit="hecto" class="chart-box w-full h-16 p-2 text-center border-t-0 border-2 border-orange-500 dark:border-orange-600 bg-white dark:bg-gray-700 rounded-b-lg text-gray-900 dark:text-white"><span class="number-display"></span><div class="decimal-point-area"></div><div class="decimal-point">.</div></div>
+                <div data-unit="deca" class="chart-box w-full h-16 p-2 text-center border-t-0 border-2 border-amber-400 dark:border-amber-600 bg-white dark:bg-gray-700 rounded-b-lg text-gray-900 dark:text-white"><span class="number-display"></span><div class="decimal-point-area"></div><div class="decimal-point">.</div></div>
+                <div data-unit="base" class="chart-box w-full h-16 p-2 text-center border-t-0 border-2 border-lime-500 dark:border-lime-600 bg-white dark:bg-gray-700 rounded-b-lg text-gray-900 dark:text-white"><span class="number-display"></span><div class="decimal-point-area"></div><div class="decimal-point">.</div></div>
+                <div data-unit="deci" class="chart-box w-full h-16 p-2 text-center border-t-0 border-2 border-teal-500 dark:border-teal-600 bg-white dark:bg-gray-700 rounded-b-lg text-gray-900 dark:text-white"><span class="number-display"></span><div class="decimal-point-area"></div><div class="decimal-point">.</div></div>
+                <div data-unit="centi" class="chart-box w-full h-16 p-2 text-center border-t-0 border-2 border-cyan-500 dark:border-cyan-600 bg-white dark:bg-gray-700 rounded-b-lg text-gray-900 dark:text-white"><span class="number-display"></span><div class="decimal-point-area"></div><div class="decimal-point">.</div></div>
+                <div data-unit="milli" class="chart-box w-full h-16 p-2 text-center border-t-0 border-2 border-fuchsia-500 dark:border-fuchsia-600 bg-white dark:bg-gray-700 rounded-b-lg text-gray-900 dark:text-white"><span class="number-display"></span><div class="decimal-point-area"></div><div class="decimal-point">.</div></div>
+            </div>
+             <p class="text-xs text-center text-gray-400 mt-3">Mnemonic: Kids Have Dared Bob Dont Chew Mud</p>
+        </div>
+    </div>
+
+    <!-- Floating Numeric Keypad -->
+    <div id="keypad">
+        <div class="grid grid-cols-3 gap-2">
+            <button data-key="1" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">1</button>
+            <button data-key="2" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">2</button>
+            <button data-key="3" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">3</button>
+            <button data-key="4" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">4</button>
+            <button data-key="5" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">5</button>
+            <button data-key="6" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">6</button>
+            <button data-key="7" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">7</button>
+            <button data-key="8" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">8</button>
+            <button data-key="9" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">9</button>
+            <button data-key="0" class="keypad-btn col-span-2 rounded-lg p-3 text-xl font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">0</button>
+            <button data-key="backspace" class="keypad-btn rounded-lg p-3 text-xl font-bold bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white hover:bg-gray-400 dark:hover:bg-gray-500 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 002.828 0L21 12M3 12l6.414-6.414a2 2 0 012.828 0L21 12" /></svg>
+            </button>
+        </div>
+        <button data-key="done" class="keypad-btn w-full mt-2 rounded-lg p-2 text-lg font-bold bg-blue-600 text-white hover:bg-blue-700">Done</button>
+    </div>
+
+
+    <script>
+        const problemText = document.getElementById('problem-text');
+        const chartBoxes = document.querySelectorAll('.chart-box');
+        const checkAnswerBtn = document.getElementById('check-answer');
+        const newProblemBtn = document.getElementById('new-problem');
+        const hardProblemBtn = document.getElementById('hard-problem');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const fullscreenIcon = document.getElementById('fullscreen-icon');
+        const exitFullscreenIcon = document.getElementById('exit-fullscreen-icon');
+        const feedbackDiv = document.getElementById('feedback');
+        const keypad = document.getElementById('keypad');
+        const speechBubble = document.getElementById('speech-bubble');
+        const robotFace = document.getElementById('robot-face');
+        const robotPupils = document.querySelectorAll('.pupil');
+        
+        let currentProblem = {};
+        let activeBox = null;
+        let voices = [];
+
+        const units = [];
+        const baseUnits = ['m', 'l', 'g'];
+        const correctPhrases = ["I've crunched the numbers, and your answer is perfect! Outstanding job.", "You're a metric system superstar! That's another one you've gotten right.", "My circuits are buzzing with excitement! That is precisely the correct conversion.", "Flawless! You didn't just get it right, you showed that problem who's boss.", "I knew you could do it! Your brain is a powerful calculator."];
+        const incorrectPhrases = ["Oops, try again.", "You can do it!", "Second time's a charm.", "Almost there!", "Give it another shot!", "Don't give up!", "So close!"];
+
+        // --- ROBOT VOICE ---
+        function populateVoiceList() {
+            if(typeof speechSynthesis === 'undefined') {
+                return;
+            }
+            voices = speechSynthesis.getVoices();
+        }
+
+        populateVoiceList();
+        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+        
+        function robotSpeak(text, isCorrect) {
+            if(typeof speechSynthesis === 'undefined') {
+                feedbackDiv.textContent = text; // Fallback for no speech
+                return;
+            }
+
+            speechSynthesis.cancel(); // Cancel any previous speech
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Try to find a standard voice, avoiding robotic ones
+            let normalVoice = voices.find(voice => voice.lang.startsWith('en-US') && !voice.name.includes('Robot') && !voice.name.includes('Automaton'));
+
+            if (normalVoice) {
+                utterance.voice = normalVoice;
+            }
+            
+            speechBubble.textContent = text;
+            speechBubble.classList.add('visible');
+
+            robotPupils.forEach(pupil => {
+                 pupil.style.backgroundColor = isCorrect ? '#22c55e' : '#ef4444'; // green or red
+            });
+
+            // Trigger animation
+            robotFace.classList.remove('dancing', 'shrugging');
+            setTimeout(() => {
+                if(isCorrect) {
+                    robotFace.classList.add('dancing');
+                } else {
+                    robotFace.classList.add('shrugging');
+                }
+            }, 10);
+
+
+            speechSynthesis.speak(utterance);
+        }
+        
+        function hideRobotSpeech() {
+            speechBubble.classList.remove('visible');
+            robotPupils.forEach(pupil => {
+                 pupil.style.backgroundColor = '#1f2937'; // default color
+            });
+            robotFace.classList.remove('dancing', 'shrugging');
+        }
+
+
+        // --- PROBLEM LOGIC ---
+        function generateProblem(isHard = false) {
+            clearChart();
+            feedbackDiv.textContent = '';
+            feedbackDiv.className = 'text-center text-lg font-medium mb-6 min-h-[28px]';
+            hideRobotSpeech();
+            hideKeypad();
+
+            let fromUnit, toUnit;
+            do {
+                fromUnit = units[Math.floor(Math.random() * units.length)];
+                toUnit = units[Math.floor(Math.random() * units.length)];
+            } while (fromUnit.name === toUnit.name);
+            
+            const base = baseUnits[Math.floor(Math.random() * baseUnits.length)];
+            
+            const value = isHard
+                ? Math.floor(Math.random() * 90) + 10 // 10-99
+                : Math.floor(Math.random() * 9) + 1;   // 1-9
+
+            const fromSymbol = fromUnit.symbol + base;
+            const toSymbol = toUnit.symbol + base;
+
+            problemText.innerHTML = `${value} ${fromSymbol} = <span class="text-blue-500">____</span> ${toSymbol}`;
+
+            const valueInBase = value * fromUnit.factor;
+            const correctAnswer = valueInBase / toUnit.factor;
+
+            currentProblem = { value, fromUnit, toUnit, correctAnswer };
+        }
+
+        function clearChart() {
+            chartBoxes.forEach(box => {
+                box.querySelector('.number-display').textContent = '';
+                box.classList.remove('has-decimal', 'active');
+            });
+            activeBox = null;
+        }
+
+        function checkAnswer() {
+            hideKeypad();
+            let constructedString = "";
+
+            chartBoxes.forEach(box => {
+                let num = box.querySelector('.number-display').textContent.trim();
+                constructedString += num;
+                if (box.classList.contains('has-decimal')) {
+                    constructedString += ".";
+                }
+            });
+            
+            const studentAnswer = parseFloat(constructedString) || 0;
+            
+            if (Math.abs(studentAnswer - currentProblem.correctAnswer) < 0.00001) {
+                const phrase = correctPhrases[Math.floor(Math.random() * correctPhrases.length)];
+                robotSpeak(phrase, true);
+                feedbackDiv.textContent = 'Correct!';
+                feedbackDiv.className = 'text-center text-lg font-medium mb-6 min-h-[28px] text-green-600 dark:text-green-400';
+            } else {
+                const phrase = incorrectPhrases[Math.floor(Math.random() * incorrectPhrases.length)];
+                robotSpeak(phrase, false);
+                feedbackDiv.textContent = `Not quite. The correct answer is ${currentProblem.correctAnswer}.`;
+                feedbackDiv.className = 'text-center text-lg font-medium mb-6 min-h-[28px] text-red-600 dark:text-red-400';
+            }
+        }
+
+        // --- UI HANDLING ---
+        function showKeypad(box) {
+            const rect = box.getBoundingClientRect();
+            keypad.style.display = 'block';
+            const keypadRect = keypad.getBoundingClientRect();
+
+            let top = rect.top + (rect.height / 2) - (keypadRect.height / 2);
+            let left = rect.left - keypadRect.width - 15; // 15px margin
+
+            // Boundary checks
+            if (left < 10) { // If not enough space on the left, move it to the right
+                left = rect.right + 15;
+            }
+            if (top < 10) { // Keep it from going off the top
+                top = 10;
+            }
+            if (top + keypadRect.height > window.innerHeight) { // Keep it from going off the bottom
+                top = window.innerHeight - keypadRect.height - 10;
+            }
+
+            keypad.style.top = `${top}px`;
+            keypad.style.left = `${left}px`;
+        }
+
+        function hideKeypad() {
+            keypad.style.display = 'none';
+            if (activeBox) {
+                activeBox.classList.remove('active');
+                activeBox = null;
+            }
+        }
+        
+        function handleKeypadInput(e) {
+            if (!activeBox) return;
+
+            const key = e.target.closest('.keypad-btn')?.dataset.key;
+            if (!key) return;
+
+            if (key === 'done') {
+                hideKeypad();
+                return;
+            }
+            
+            const numberDisplay = activeBox.querySelector('.number-display');
+            
+            if (key === 'backspace') {
+                numberDisplay.textContent = numberDisplay.textContent.slice(0, -1);
+            } else {
+                if(numberDisplay.textContent.length < 3) {
+                   numberDisplay.textContent += key;
+                }
+            }
+        }
+
+        // --- FULLSCREEN LOGIC ---
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        function handleFullscreenChange() {
+            if (document.fullscreenElement) {
+                document.body.classList.add('fullscreen');
+                fullscreenIcon.classList.add('hidden');
+                exitFullscreenIcon.classList.remove('hidden');
+            } else {
+                document.body.classList.remove('fullscreen');
+                fullscreenIcon.classList.remove('hidden');
+                exitFullscreenIcon.classList.add('hidden');
+            }
+        }
+
+        chartBoxes.forEach(box => {
+            box.addEventListener('click', (e) => {
+                if (e.target.closest('.decimal-point-area')) return; // Ignore clicks on decimal area
+                if(activeBox) activeBox.classList.remove('active');
+                activeBox = box;
+                activeBox.classList.add('active');
+                showKeypad(box);
+            });
+
+            box.querySelector('.decimal-point-area').addEventListener('click', (e) => {
+                e.stopPropagation();
+                chartBoxes.forEach(b => b.classList.remove('has-decimal'));
+                box.classList.toggle('has-decimal');
+            });
+        });
+
+        keypad.addEventListener('click', handleKeypadInput);
+        checkAnswerBtn.addEventListener('click', checkAnswer);
+        newProblemBtn.addEventListener('click', () => generateProblem(false));
+        hardProblemBtn.addEventListener('click', () => generateProblem(true));
+        fullscreenBtn.addEventListener('click', toggleFullScreen);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        
+        // Initial setup
+        const populatedUnits = [
+            { name: 'Kilo', symbol: 'k', factor: 1000 }, { name: 'Hecto', symbol: 'h', factor: 100 },
+            { name: 'Deca', symbol: 'da', factor: 10 }, { name: 'Base', symbol: '', factor: 1 },
+            { name: 'Deci', symbol: 'd', factor: 0.1 }, { name: 'Centi', symbol: 'c', factor: 0.01 },
+            { name: 'Milli', symbol: 'm', factor: 0.001 }
+        ];
+        units.push(...populatedUnits);
+        
+        window.onload = () => generateProblem(false);
+    </script>
+</body>
+</html>
+
