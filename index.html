@@ -405,9 +405,25 @@
             
             const base = baseUnits[Math.floor(Math.random() * baseUnits.length)];
             
-            const value = isHard
-                ? Math.floor(Math.random() * 90) + 10 // 10-99
-                : Math.floor(Math.random() * 9) + 1;   // 1-9
+            let value;
+            if (isHard) {
+                // Create a mix of whole numbers and decimals for hard problems
+                const problemType = Math.floor(Math.random() * 3); // 0, 1, or 2
+                switch (problemType) {
+                    case 0: // Two-digit whole number
+                        value = Math.floor(Math.random() * 90) + 10;
+                        break;
+                    case 1: // Number with one decimal place
+                        value = parseFloat(((Math.random() * 98) + 1).toFixed(1));
+                        break;
+                    case 2: // Number with two decimal places
+                        value = parseFloat(((Math.random() * 98) + 1).toFixed(2));
+                        break;
+                }
+            } else {
+                // Single-digit whole number for easy problems
+                value = Math.floor(Math.random() * 9) + 1;
+            }
 
             const fromSymbol = fromUnit.symbol + base;
             const toSymbol = toUnit.symbol + base;
@@ -570,5 +586,6 @@
     </script>
 </body>
 </html>
+
 
 
